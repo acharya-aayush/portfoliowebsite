@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Animated Timeline — Black Sword</title>
+  <style>
+    :root{
+      --bg:#0f0f10;
+      --card:#0b0b0c;
+      --muted:#9aa0a6;
+      --accent:#c2c6cc;
+      --glow: rgba(255,255,255,0.06);
+      --sword:#0b0b0c; /* black sword */
+      --blade:#0f1112;
+      --edge:#aeb3b8;
+      --primary:#ffffff;
+      --radius:14px;
+      --gap:120px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg), #080808);color:var(--primary);}
+
+    .wrap{
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:64px 24px;
+    }
+
+    .timeline{
+      width:900px;
+      max-width:95vw;
+      position:relative;
+      padding:40px 36px;
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      overflow:hidden;
+    }
+
+    /* Sword column */
+    .sword-col{
+      position:absolute;
+      left:50%;
+      top:36px;
+      transform:translateX(-50%);
+      width:72px;
+      height:calc(100% - 72px);
+      display:flex;
+      align-items:flex-start;
+      pointer-events:none;
+    }
+
+    /* central sword SVG container */
+    .sword{
+      width:18px;
+      margin:0 auto;
+      filter: drop-shadow(0 8px 12px rgba(0,0,0,0.8));
+      transform-origin:50% 0;
+    }
+
+    /* blade shine (animated) */
+    .blade-shimmer{
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      width:4px;
+      height:100%;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      mix-blend-mode:overlay;
+      pointer-events:none;
+      animation: shimmer 4s linear infinite;
+      opacity:0.6;
+    }
+    @keyframes shimmer{0%{transform:translateX(-50%) translateY(-20%)}50%{transform:translateX(-50%) translateY(20%)}100%{transform:translateX(-50%) translateY(-20%)}}
+
+    /* timeline events container */
+    .events{position:relative;padding:20px 0 60px;}
+    .event{
+      display:flex;
+      width:calc(50% - 64px);
+      padding:18px 20px;
+      position:relative;
+      border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+      backdrop-filter: blur(6px);
+      opacity:0;transform:translateY(18px) scale(0.99);
+      transition: all 650ms cubic-bezier(.2,.9,.25,1);
+    }
+    .event.in-view{opacity:1;transform:none}
+
+    .event.left{margin-left:0; margin-right:auto;}
+    .event.right{margin-left:auto;margin-right:0;}
+
+    .event + .spacer{height:var(--gap)}
+
+    .event h3{margin:0 0 6px 0;font-size:1.05rem;color:var(--accent)}
+    .event p{margin:0;font-size:0.94rem;color:var(--muted);line-height:1.45}
+    .event .meta{font-size:0.82rem;color:var(--muted);margin-bottom:8px}
+
+    /* connector dot to sword */
+    .connector{
+      position:absolute;
+      top:18px;
+      width:28px;height:28px;border-radius:50%;
+      background:var(--glow);
+      left:100%;
+      transform:translateX(-50%);
+      box-shadow: 0 0 0 6px rgba(255,255,255,0.02), 0 6px 18px rgba(0,0,0,0.6);
+    }
+    .event.right .connector{left:auto; right:100%; transform:translateX(50%)}
+
+    /* tiny pulse */
+    .dot{
+      width:10px;height:10px;border-radius:50%;background:var(--edge);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+      box-shadow:0 0 12px rgba(174,179,184,0.12);
+    }
+
+    /* make room for sword center */
+    .column-left{float:left;width:50%;padding-right:40px}
+    .column-right{float:right;width:50%;padding-left:40px}
+
+    /* responsive */
+    @media (max-width:720px){
+      .event{width:100%;margin:0 0 18px 0}
+      .column-left,.column-right{width:100%;padding:0}
+      .sword-col{left:16px;transform:none}
+      .sword{width:12px}
+      .blade-shimmer{left:26px}
+    }
+
+    /* small visual polish */
+    .title{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+    .title h1{font-size:1.25rem;margin:0;color:var(--primary)}
+    .subtitle{color:var(--muted);font-size:0.92rem}
+
+    /* hover lift */
+    .event:hover{transform:translateY(-6px) scale(1.01)}
+
+    /* reduce motion */
+    @media (prefers-reduced-motion: reduce){
+      .blade-shimmer, .event{animation:none;transition:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="timeline" aria-label="Animated timeline with black sword">
+      <div class="title">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+          <path d="M12 2l2 4 4 2-4 2-2 12-2-12-4-2 4-2 2-4z" fill="currentColor" opacity="0.9"/>
+        </svg>
+        <div>
+          <h1>Path of Progress</h1>
+          <div class="subtitle">A clean, animated timeline — the sword marks the spine of growth</div>
+        </div>
+      </div>
+
+      <div class="sword-col" aria-hidden>
+        <!-- central sword (simple, scalable SVG) -->
+        <svg class="sword" viewBox="0 0 120 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="black sword">
+          <!-- pommel -->
+          <g transform="translate(50,20)">
+            <ellipse cx="10" cy="10" rx="12" ry="6" fill="var(--sword)" />
+            <rect x="-6" y="18" width="32" height="22" rx="6" fill="var(--sword)" />
+          </g>
+          <!-- guard -->
+          <g transform="translate(30,56)">
+            <rect x="-6" y="0" width="44" height="8" rx="4" fill="var(--sword)" />
+          </g>
+          <!-- grip -->
+          <g transform="translate(44,70)">
+            <rect x="-6" y="0" width="12" height="40" rx="6" fill="var(--blade)" />
+          </g>
+          <!-- blade -->
+          <g transform="translate(18,120)">
+            <path d="M10 0 L18 360 L10 380 L2 360 Z" fill="var(--blade)" stroke="var(--edge)" stroke-width="0.6"/>
+            <path d="M10 18 L14 360" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+          </g>
+        </svg>
+        <div class="blade-shimmer" style="height:calc(100% - 24px);top:36px"></div>
+      </div>
+
+      <div class="events">
+        <div class="column-left">
+          <div class="event left" style="margin-top:6px">
+            <div class="connector"><div class="dot"></div></div>
+            <div class="meta">Jan 2020</div>
+            <h3>Started small</h3>
+            <p>Launched the first minimal prototype. Focused on core functionality and ruthless iteration.</p>
+          </div>
+          <div class="spacer"></div>
+
+          <div class="event left">
+            <div class="connector"><div class="dot"></div></div>
+            <div class="meta">Aug 2020</div>
+            <h3>First customers</h3>
+            <p>Onboarded initial users and collected brutal, honest feedback that shaped the roadmap.</p>
+          </div>
+
+          <div class="spacer"></div>
+
+          <div class="event left">
+            <div class="connector"><div class="dot"></div></div>
+            <div class="meta">Mar 2022</div>
+            <h3>Scaled up</h3>
+            <p>Optimized performance, hired talent, and prepared the platform for broader adoption.</p>
+          </div>
+        </div>
+
+        <div class="column-right">
+          <div class="event right" style="margin-top:26px">
+            <div class="connector"><div class="dot"></div></div>
+            <div class="meta">Dec 2021</div>
+            <h3>Design overhaul</h3>
+            <p>Polished UI, introduced motion and a central narrative — the sword concept was born.</p>
+          </div>
+          <div class="spacer"></div>
+
+          <div class="event right">
+            <div class="connector"><div class="dot"></div></div>
+            <div class="meta">Jul 2023</div>
+            <h3>Enterprise clients</h3>
+            <p>Secured larger contracts and hardened infrastructure for reliability at scale.</p>
+          </div>
+
+          <div class="spacer"></div>
+
+          <div class="event right">
+            <div class="connector"><div class="dot"></div></div>
+            <div class="meta">Oct 2024</div>
+            <h3>Present</h3>
+            <p>Continuous refinement, measurement-driven decisions, and forward momentum.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+  <script>
+    // Intersection observer to reveal events when they enter viewport
+    (function(){
+      const events = document.querySelectorAll('.event');
+      const opts = {root: null, rootMargin: '0px', threshold: 0.14};
+      const io = new IntersectionObserver((entries)=>{
+        entries.forEach(e=>{
+          if(e.isIntersecting){ e.target.classList.add('in-view'); }
+        });
+      }, opts);
+      events.forEach(el=>io.observe(el));
+
+      // make connectors align to the sword center
+      function positionConnectors(){
+        const swordRect = document.querySelector('.sword').getBoundingClientRect();
+        const timelineRect = document.querySelector('.timeline').getBoundingClientRect();
+        const centerX = swordRect.left + swordRect.width/2 - timelineRect.left;
+        document.querySelectorAll('.connector').forEach(conn=>{
+          // each connector is placed absolutely relative to event box; we shift it to meet the central sword
+          const parent = conn.parentElement.getBoundingClientRect();
+          const connY = parent.top - timelineRect.top + 18;
+          conn.style.top = connY + 'px';
+          // left/right handled in CSS; for precise tiny shift we could tweak transform
+        });
+      }
+      window.addEventListener('load', positionConnectors);
+      window.addEventListener('resize', positionConnectors);
+
+      // touch friendly: allow vertical swipe to move through events
+      document.querySelector('.timeline').style.touchAction = 'pan-y';
+    })();
+  </script>
+</body>
+</html>
