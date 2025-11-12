@@ -33,6 +33,15 @@ const projectsData = [
     live: 'https://acharya-aayush.github.io/TypeSmash/',
   },
   {
+    title: 'Ultimate Tic Tac Toe: Night City Edition',
+    tagline: 'Cyberpunk-Themed Strategic Board Game',
+    description: 'A futuristic twist on Ultimate Tic Tac Toe with 9 interconnected boards where each move dictates your opponent\'s next play. Features 4 AI difficulty levels, cyberpunk aesthetics, neon UI with glitch effects, AI move logging, and an immersive soundtrack. Strategic gameplay meets Night City chaos.',
+    techStack: ['JavaScript', 'HTML5', 'CSS3', 'AI Logic', 'Game Design'],
+    image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80',
+    github: 'https://github.com/acharya-aayush/Ultimate-Tic-Tac-Toe-Night-City-Edition',
+    live: 'https://acharya-aayush.github.io/Ultimate-Tic-Tac-Toe-Night-City-Edition/',
+  },
+  {
     title: 'TradeHeaven',
     tagline: 'MarketFlow Dynamics Trading Platform',
     description: 'Trading platform prototype built during 5th semester. Features portfolio management, watchlists, and real-time trading concepts. A learning project that helped understand full-stack development fundamentals.',
