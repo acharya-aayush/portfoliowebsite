@@ -275,7 +275,7 @@ export const ShootingCrosshair: React.FC<ShootingCrosshairProps> = ({
           >
             <img 
               src="/skill/crackk.png" 
-              alt="" 
+              alt="Bullet hole crack effect" 
               style={{
                 width: '100%',
                 height: '100%',

@@ -1,23 +1,31 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import * as THREE from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import { 
+  PARTICLE_CONFIG, 
+  AUDIO_CONFIG, 
+  TEXT_SIZE_MAP, 
+  BREAKPOINTS,
+  ANIMATION_TIMINGS 
+} from '@/config/constants';
 
 interface InteractiveTextProps {
   text?: string;
   className?: string;
 }
 
-const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: InteractiveTextProps) => {
+const InteractiveText = memo(({ text = "AAYUSH ACHARYA", className = "" }: InteractiveTextProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     // Initialize audio
-    audioRef.current = new Audio('/home/distortion.mp3');
-    audioRef.current.volume = 0.3;
+    audioRef.current = new Audio(AUDIO_CONFIG.DISTORTION_AUDIO_PATH);
+    audioRef.current.volume = AUDIO_CONFIG.INITIAL_VOLUME;
 
     let scene: THREE.Scene;
     let camera: THREE.PerspectiveCamera;
@@ -28,7 +36,7 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
     let animationId: number;
     
     const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2(-10000, -10000); // Far off-screen to prevent initial distortion
+    const mouse = new THREE.Vector2(PARTICLE_CONFIG.MOUSE_OFF_SCREEN_X, PARTICLE_CONFIG.MOUSE_OFF_SCREEN_Y);
     const colorChange = new THREE.Color();
     let isMouseDown = false;
     let volumeInterval: NodeJS.Timeout | null = null;
@@ -36,19 +44,25 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
     // Calculate responsive text size based on screen width
     const getResponsiveTextSize = () => {
       const width = window.innerWidth;
-      if (width < 640) return 10; // mobile
-      if (width < 768) return 12; // small tablet
-      if (width < 1024) return 14; // tablet
-      if (width < 1280) return 16; // small desktop
-      return 18; // large desktop
+      if (width < BREAKPOINTS.SM) return TEXT_SIZE_MAP.MOBILE;
+      if (width < BREAKPOINTS.MD) return TEXT_SIZE_MAP.SMALL_TABLET;
+      if (width < BREAKPOINTS.LG) return TEXT_SIZE_MAP.TABLET;
+      if (width < BREAKPOINTS.XL) return TEXT_SIZE_MAP.SMALL_DESKTOP;
+      return TEXT_SIZE_MAP.LARGE_DESKTOP;
     };
 
-    const data = {
-      amount: 2000,
-      particleSize: 2,
+    const data: {
+      amount: number;
+      particleSize: number;
+      textSize: number;
+      area: number;
+      ease: number;
+    } = {
+      amount: PARTICLE_CONFIG.PARTICLE_AMOUNT,
+      particleSize: PARTICLE_CONFIG.PARTICLE_SIZE,
       textSize: getResponsiveTextSize(),
-      area: 80, // Reduced hover radius for more precise interaction
-      ease: 0.12,
+      area: PARTICLE_CONFIG.HOVER_AREA,
+      ease: PARTICLE_CONFIG.EASE_DEFAULT,
     };
 
     // Vertex Shader
@@ -203,6 +217,7 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
       });
 
       particles = new THREE.Points(geoParticles, material);
+      particles.visible = false; // Start invisible
       scene.add(particles);
 
       geometryCopy = new THREE.BufferGeometry();
@@ -345,32 +360,33 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
       if (!isInsideContainer) return;
       
       isMouseDown = true;
-      data.ease = 0.02;
+      data.ease = PARTICLE_CONFIG.EASE_ACTIVE;
       
       // Play sound effect with gradual volume increase
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.volume = 0.3; // Start at 30%
+        audioRef.current.volume = AUDIO_CONFIG.INITIAL_VOLUME;
         audioRef.current.loop = true;
         audioRef.current.play().catch(err => console.log('Audio play failed:', err));
         
-        // Gradually increase volume to 1.25x (0.375) over time while holding
-        const maxVolume = 0.375; // 1.25x of 0.3
-        const incrementRate = 0.005; // Volume increase per 50ms
+        // Gradually increase volume over time while holding
         volumeInterval = setInterval(() => {
-          if (audioRef.current && audioRef.current.volume < maxVolume) {
-            audioRef.current.volume = Math.min(audioRef.current.volume + incrementRate, maxVolume);
+          if (audioRef.current && audioRef.current.volume < AUDIO_CONFIG.MAX_VOLUME) {
+            audioRef.current.volume = Math.min(
+              audioRef.current.volume + AUDIO_CONFIG.VOLUME_INCREMENT, 
+              AUDIO_CONFIG.MAX_VOLUME
+            );
           } else if (volumeInterval) {
             clearInterval(volumeInterval);
             volumeInterval = null;
           }
-        }, 50);
+        }, ANIMATION_TIMINGS.VOLUME_INCREMENT_INTERVAL);
       }
     };
 
     const onMouseUp = () => {
       isMouseDown = false;
-      data.ease = 0.12;
+      data.ease = PARTICLE_CONFIG.EASE_DEFAULT;
       
       // Clear volume interval
       if (volumeInterval) {
@@ -382,7 +398,7 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
-        audioRef.current.volume = 0.3;
+        audioRef.current.volume = AUDIO_CONFIG.INITIAL_VOLUME;
       }
     };
 
@@ -442,6 +458,14 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
         window.addEventListener('resize', onWindowResize);
 
         render();
+        
+        // Show particles after initialization is complete
+        setTimeout(() => {
+          if (particles) {
+            particles.visible = true;
+          }
+          setIsLoaded(true);
+        }, ANIMATION_TIMINGS.PARTICLE_TEXT_FADE_IN);
       } catch (error) {
         console.error('Error loading font:', error);
       }
@@ -484,10 +508,14 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
       style={{ 
         width: '100%', 
         height: '100%',
-        fontFamily: "'Playfair Display', serif"
+        fontFamily: "'Playfair Display', serif",
+        opacity: isLoaded ? 1 : 0,
+        transition: 'opacity 0.5s ease-in'
       }}
     />
   );
-};
+});
+
+InteractiveText.displayName = 'InteractiveText';
 
 export default InteractiveText;

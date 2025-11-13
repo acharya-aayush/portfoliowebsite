@@ -1,25 +1,27 @@
 import { Helmet } from 'react-helmet-async';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ANIMATION_TIMINGS } from '@/config/constants';
 import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
-import About from '@/components/About';
-import Skills from '@/components/Skills';
-import Projects from '@/components/Projects';
-import ProjectsDemo from '@/components/ProjectsDemo';
-import Contact from '@/components/Contact';
 import Footer from '@/components/Footer';
-import EasterEgg from '@/components/EasterEgg';
 import { RandomLoadingScreen } from '@/components/ui/random-loaders';
+
+// Lazy load heavy components
+const About = lazy(() => import('@/components/About'));
+const Skills = lazy(() => import('@/components/Skills'));
+const Projects = lazy(() => import('@/components/Projects'));
+const ProjectsDemo = lazy(() => import('@/components/ProjectsDemo'));
+const Contact = lazy(() => import('@/components/Contact'));
+const EasterEgg = lazy(() => import('@/components/EasterEgg'));
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading time (adjust duration as needed)
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2500); // 2.5 seconds
+    }, ANIMATION_TIMINGS.LOADING_SCREEN_DURATION);
 
     return () => clearTimeout(timer);
   }, []);
@@ -47,20 +49,22 @@ const Index = () => {
             key="content"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: ANIMATION_TIMINGS.FADE_OUT }}
             className="min-h-screen"
           >
             <Navbar />
             <main>
               <Hero />
-              <About />
-              <Skills />
-              <Projects />
-              {/* <ProjectsDemo /> */}
-              <Contact />
+              <Suspense fallback={<div className="min-h-screen" />}>
+                <About />
+                <Skills />
+                <Projects />
+                {/* <ProjectsDemo /> */}
+                <Contact />
+                <EasterEgg />
+              </Suspense>
             </main>
             <Footer />
-            <EasterEgg />
           </motion.div>
         )}
       </AnimatePresence>

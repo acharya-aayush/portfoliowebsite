@@ -188,7 +188,7 @@ const Skills = () => {
         >
           <img
             src="/skill/mousepointer-128.png"
-            alt="cursor"
+            alt="Custom animated cursor pointer"
             className="custom-cursor-animated"
             style={{ width: '48px', height: '48px' }}
           />
