@@ -10,9 +10,14 @@ interface InteractiveTextProps {
 const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: InteractiveTextProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    // Initialize audio
+    audioRef.current = new Audio('/home/distortion.mp3');
+    audioRef.current.volume = 0.3;
 
     let scene: THREE.Scene;
     let camera: THREE.PerspectiveCamera;
@@ -23,14 +28,25 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
     let animationId: number;
     
     const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2(-200, 200);
+    const mouse = new THREE.Vector2(-10000, -10000); // Far off-screen to prevent initial distortion
     const colorChange = new THREE.Color();
     let isMouseDown = false;
+    let volumeInterval: NodeJS.Timeout | null = null;
+
+    // Calculate responsive text size based on screen width
+    const getResponsiveTextSize = () => {
+      const width = window.innerWidth;
+      if (width < 640) return 10; // mobile
+      if (width < 768) return 12; // small tablet
+      if (width < 1024) return 14; // tablet
+      if (width < 1280) return 16; // small desktop
+      return 18; // large desktop
+    };
 
     const data = {
       amount: 2000,
       particleSize: 2,
-      textSize: 18,
+      textSize: getResponsiveTextSize(),
       area: 80, // Reduced hover radius for more precise interaction
       ease: 0.12,
     };
@@ -316,14 +332,58 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
       mouse.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
     };
 
-    const onMouseDown = () => {
+    const onMouseDown = (event: MouseEvent) => {
+      // Only play sound if clicking within the container
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const isInsideContainer = 
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+      
+      if (!isInsideContainer) return;
+      
       isMouseDown = true;
       data.ease = 0.02;
+      
+      // Play sound effect with gradual volume increase
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.volume = 0.3; // Start at 30%
+        audioRef.current.loop = true;
+        audioRef.current.play().catch(err => console.log('Audio play failed:', err));
+        
+        // Gradually increase volume to 1.25x (0.375) over time while holding
+        const maxVolume = 0.375; // 1.25x of 0.3
+        const incrementRate = 0.005; // Volume increase per 50ms
+        volumeInterval = setInterval(() => {
+          if (audioRef.current && audioRef.current.volume < maxVolume) {
+            audioRef.current.volume = Math.min(audioRef.current.volume + incrementRate, maxVolume);
+          } else if (volumeInterval) {
+            clearInterval(volumeInterval);
+            volumeInterval = null;
+          }
+        }, 50);
+      }
     };
 
     const onMouseUp = () => {
       isMouseDown = false;
       data.ease = 0.12;
+      
+      // Clear volume interval
+      if (volumeInterval) {
+        clearInterval(volumeInterval);
+        volumeInterval = null;
+      }
+      
+      // Stop sound effect and reset volume
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current.volume = 0.3;
+      }
     };
 
     const onWindowResize = () => {
@@ -340,6 +400,25 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
         planeArea.geometry.dispose();
         planeArea.geometry = new THREE.PlaneGeometry(newWidth, newHeight);
         planeArea.position.z = 0;
+      }
+
+      // Update text size on resize
+      const newTextSize = getResponsiveTextSize();
+      if (newTextSize !== data.textSize && particles) {
+        data.textSize = newTextSize;
+        // Recreate text with new size
+        scene.remove(particles);
+        particles.geometry.dispose();
+        geometryCopy.dispose();
+        
+        const particleTexture = createParticleTexture();
+        const fontLoader = new FontLoader();
+        fontLoader.load(
+          'https://res.cloudinary.com/dydre7amr/raw/upload/v1612950355/font_zsd4dr.json',
+          (font) => {
+            createText(font, particleTexture);
+          }
+        );
       }
     };
 
@@ -385,6 +464,12 @@ const InteractiveText = ({ text = "AAYUSH ACHARYA", className = "" }: Interactiv
       if (particles) particles.geometry.dispose();
       if (geometryCopy) geometryCopy.dispose();
       if (renderer) renderer.dispose();
+      
+      // Cleanup audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
 
     return () => {
