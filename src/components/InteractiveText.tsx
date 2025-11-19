@@ -19,6 +19,8 @@ const InteractiveText = memo(({ text = "AAYUSH ACHARYA", className = "" }: Inter
   const cleanupRef = useRef<(() => void) | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showGPUWarning, setShowGPUWarning] = useState(false);
+  const animationCompleteRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -26,6 +28,32 @@ const InteractiveText = memo(({ text = "AAYUSH ACHARYA", className = "" }: Inter
     // Initialize audio
     audioRef.current = new Audio(AUDIO_CONFIG.DISTORTION_AUDIO_PATH);
     audioRef.current.volume = AUDIO_CONFIG.INITIAL_VOLUME;
+    
+    // Check GPU acceleration
+    const checkGPUAcceleration = () => {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
+      
+      if (!gl) {
+        setShowGPUWarning(true);
+        return false;
+      }
+      
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if (debugInfo) {
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) as string;
+        // Check if using software renderer
+        if (renderer.toLowerCase().includes('swiftshader') || 
+            renderer.toLowerCase().includes('software') ||
+            renderer.toLowerCase().includes('llvmpipe')) {
+          setShowGPUWarning(true);
+          return false;
+        }
+      }
+      return true;
+    };
+    
+    checkGPUAcceleration();
 
     let scene: THREE.Scene;
     let camera: THREE.PerspectiveCamera;
@@ -120,9 +148,13 @@ const InteractiveText = memo(({ text = "AAYUSH ACHARYA", className = "" }: Inter
       );
       camera.position.set(0, 0, 150);
 
-      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      renderer = new THREE.WebGLRenderer({ 
+        alpha: true, 
+        antialias: false, // Disable for better performance
+        powerPreference: 'high-performance'
+      });
       renderer.setSize(container.clientWidth, container.clientHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Cap at 1.5x for performance
       container.appendChild(renderer.domElement);
 
       // Create invisible plane for raycasting
@@ -217,16 +249,63 @@ const InteractiveText = memo(({ text = "AAYUSH ACHARYA", className = "" }: Inter
       });
 
       particles = new THREE.Points(geoParticles, material);
-      particles.visible = false; // Start invisible
       scene.add(particles);
 
       geometryCopy = new THREE.BufferGeometry();
       geometryCopy.copy(particles.geometry);
+      
+      // Scatter particles randomly for initial animation
+      const pos = particles.geometry.attributes.position;
+      const copy = geometryCopy.attributes.position;
+      
+      // Pre-calculate scatter positions with less randomness for smoother animation
+      for (let i = 0; i < pos.count; i++) {
+        const angle = (i / pos.count) * Math.PI * 2 + Math.random() * 0.5;
+        const radius = 150 + Math.random() * 150; // Reduced scatter distance
+        const targetX = copy.getX(i);
+        const targetY = copy.getY(i);
+        
+        pos.setX(i, targetX + Math.cos(angle) * radius);
+        pos.setY(i, targetY + Math.sin(angle) * radius);
+        pos.setZ(i, (Math.random() - 0.5) * 50); // Reduced Z spread
+      }
+      pos.needsUpdate = true;
     };
 
     const render = () => {
       const time = ((0.001 * performance.now()) % 12) / 12;
       const zigzagTime = (1 + Math.sin(time * 2 * Math.PI)) / 6;
+      
+      // Animate particles to form text (first 1.2 seconds) - only run during formation
+      if (!animationCompleteRef.current && particles && geometryCopy) {
+        const elapsed = performance.now() - (window as unknown as { particleStartTime?: number }).particleStartTime!;
+        const animationDuration = 1200; // Reduced to 1.2s for snappier feel
+        
+        if (elapsed < animationDuration) {
+          const progress = Math.min(elapsed / animationDuration, 1);
+          // Simple ease-out quadratic - less CPU intensive
+          const eased = progress * (2 - progress);
+          
+          const pos = particles.geometry.attributes.position;
+          const copy = geometryCopy.attributes.position;
+          const posArray = pos.array as Float32Array;
+          const copyArray = copy.array as Float32Array;
+          
+          // Direct array manipulation for better performance
+          const lerpFactor = eased * 0.2;
+          for (let i = 0; i < posArray.length; i++) {
+            posArray[i] += (copyArray[i] - posArray[i]) * lerpFactor;
+          }
+          pos.needsUpdate = true;
+        } else {
+          // Animation complete - snap to final positions and mark as done
+          animationCompleteRef.current = true;
+          const pos = particles.geometry.attributes.position;
+          const copy = geometryCopy.attributes.position;
+          pos.array.set(copy.array);
+          pos.needsUpdate = true;
+        }
+      }
 
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObject(planeArea);
@@ -451,6 +530,9 @@ const InteractiveText = memo(({ text = "AAYUSH ACHARYA", className = "" }: Inter
         );
         
         createText(font, particleTexture);
+        
+        // Store start time for animation
+        (window as unknown as { particleStartTime?: number }).particleStartTime = performance.now();
 
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mousedown', onMouseDown);
@@ -458,14 +540,7 @@ const InteractiveText = memo(({ text = "AAYUSH ACHARYA", className = "" }: Inter
         window.addEventListener('resize', onWindowResize);
 
         render();
-        
-        // Show particles after initialization is complete
-        setTimeout(() => {
-          if (particles) {
-            particles.visible = true;
-          }
-          setIsLoaded(true);
-        }, ANIMATION_TIMINGS.PARTICLE_TEXT_FADE_IN);
+        setIsLoaded(true);
       } catch (error) {
         console.error('Error loading font:', error);
       }
@@ -502,17 +577,70 @@ const InteractiveText = memo(({ text = "AAYUSH ACHARYA", className = "" }: Inter
   }, [text]);
 
   return (
-    <div 
-      ref={containerRef} 
-      className={className}
-      style={{ 
-        width: '100%', 
-        height: '100%',
-        fontFamily: "'Playfair Display', serif",
-        opacity: isLoaded ? 1 : 0,
-        transition: 'opacity 0.5s ease-in'
-      }}
-    />
+    <>
+      <div 
+        ref={containerRef} 
+        className={className}
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          fontFamily: "'Playfair Display', serif"
+        }}
+      />
+      
+      {/* GPU Warning - Glassmorphic */}
+      {showGPUWarning && (
+        <div 
+          style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            background: 'rgba(255, 255, 255, 0.05)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            zIndex: 1000,
+            fontSize: '13px',
+            maxWidth: '280px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+            fontFamily: 'Inter, sans-serif',
+            color: 'rgba(255, 255, 255, 0.9)'
+          }}
+        >
+          <div style={{ marginBottom: '10px', fontSize: '12px', fontWeight: 500, opacity: 0.7, letterSpacing: '0.5px' }}>
+            PERFORMANCE NOTICE
+          </div>
+          <p style={{ margin: '0 0 12px 0', fontSize: '13px', lineHeight: '1.5', opacity: 0.85 }}>
+            GPU acceleration unavailable. Enable hardware acceleration for optimal performance.
+          </p>
+          <button
+            onClick={() => setShowGPUWarning(false)}
+            style={{
+              padding: '6px 14px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              color: 'rgba(255, 255, 255, 0.9)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 500,
+              transition: 'all 0.2s',
+              width: '100%'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+    </>
   );
 });
 

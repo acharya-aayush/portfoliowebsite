@@ -22,7 +22,7 @@ export const PARTICLE_CONFIG = {
   EASE: 80,
   STATICITY: 50,
   SIZE: 0.8,
-  PARTICLE_AMOUNT: 2000,
+  PARTICLE_AMOUNT: 800, // Reduced from 2000 for better performance
   PARTICLE_SIZE: 2,
   HOVER_AREA: 80,
   EASE_DEFAULT: 0.12,

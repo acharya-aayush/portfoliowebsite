@@ -1,15 +1,17 @@
 import { motion } from 'framer-motion';
 import { useInView } from 'framer-motion';
-import { useRef, useState } from 'react';
-import { Github, Linkedin, Instagram } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { Github, Linkedin, Instagram, AlertCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import emailjs from '@emailjs/browser';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { BlackHole } from './ui/blackhole';
+import { canSubmit, recordSubmission } from '@/lib/rateLimit';
 
 const contactSchema = z.object({
   firstName: z.string().trim().min(1, { message: "First name is required" }).max(50),
@@ -27,6 +29,9 @@ const Contact = () => {
   const isInView = useInView(ref, { once: true, margin: '-50px' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0.5, y: 0.5 });
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [rateLimitMessage, setRateLimitMessage] = useState('');
   const { toast } = useToast();
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
@@ -39,29 +44,118 @@ const Contact = () => {
     }
   };
 
+  // Load reCAPTCHA script and check rate limits
+  useEffect(() => {
+    // Check rate limit on mount
+    const checkRateLimit = async () => {
+      const result = await canSubmit();
+      setRemainingAttempts(result.remainingAttempts || 0);
+      setIsRateLimited(!result.allowed);
+      if (result.message) {
+        setRateLimitMessage(result.message);
+      }
+    };
+    
+    checkRateLimit();
+  }, []);
+
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
   });
 
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
+    
+    // Check rate limit first
+    const rateLimitCheck = await canSubmit();
+    if (!rateLimitCheck.allowed) {
+      toast({
+        title: "Rate Limit Exceeded",
+        description: rateLimitCheck.message || "Please try again later.",
+        variant: "destructive",
+      });
+      setIsRateLimited(true);
+      setRateLimitMessage(rateLimitCheck.message || '');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Rate limiting is our primary protection
+    
+    // Use hardcoded credentials
+    const serviceId = 'service_wyf2qop';
+    const templateId = 'template_lp8dl89'; // Contact Us template
+    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+    
+    if (!publicKey) {
+      toast({
+        title: "Configuration Error",
+        description: "Email service not configured. Please add VITE_EMAILJS_PUBLIC_KEY to .env",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    
     try {
-      // Here you would normally send the data to your backend
-      console.log('Form data:', data);
+      // Send contact notification email (to you)
+      await emailjs.send(
+        serviceId,
+        templateId,
+        {
+          name: `${data.firstName} ${data.lastName}`,
+          email: data.email,
+          subject: data.subject,
+          message: data.message,
+        },
+        publicKey
+      );
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send auto-reply email (to visitor) - wrapped in try/catch to not fail main email
+      try {
+        const autoReplyTemplateId = 'template_j7b18c9';
+        await emailjs.send(
+          serviceId,
+          autoReplyTemplateId,
+          {
+            name: data.firstName,
+            email: data.email,
+            message: data.message,
+          },
+          publicKey
+        );
+      } catch (autoReplyError) {
+        // Auto-reply failed but main email succeeded
+        console.warn('Auto-reply failed:', autoReplyError);
+      }
+      
+      // Record successful submission for rate limiting
+      await recordSubmission();
+      
+      // Update remaining attempts and check if rate limited
+      const newCheck = await canSubmit();
+      setRemainingAttempts(newCheck.remainingAttempts || 0);
+      setIsRateLimited(!newCheck.allowed);
+      
+      if (newCheck.message) {
+        setRateLimitMessage(newCheck.message);
+      }
       
       toast({
-        title: "Message sent!",
+        title: "Message sent successfully!",
         description: "Thank you for reaching out. I'll get back to you soon.",
       });
       
       reset();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('EmailJS Error:', error);
+      
+      // Show specific error message if available
+      const errorMessage = error?.text || error?.message || "Please try again or contact me directly via email.";
+      
       toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
+        title: "Failed to send message",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -171,19 +265,76 @@ const Contact = () => {
             </motion.p>
           </div>
 
-          {/* Contact Form - Glassmorphic */}
-          <motion.form
-            onSubmit={handleSubmit(onSubmit)}
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="space-y-6 p-8 rounded-2xl backdrop-blur-xl bg-background/30 border border-foreground/10 shadow-2xl"
-            style={{
-              background: 'rgba(0, 0, 0, 0.4)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-            }}
-          >
+          {/* Rate Limited Message */}
+          {isRateLimited ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 0.3, duration: 0.6 }}
+              className="p-12 rounded-2xl backdrop-blur-xl bg-background/30 border border-foreground/10 shadow-2xl text-center"
+              style={{
+                background: 'rgba(0, 0, 0, 0.4)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
+                className="mb-6"
+              >
+                <AlertCircle className="w-16 h-16 mx-auto text-yellow-500/80" />
+              </motion.div>
+              
+              <motion.h3
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-2xl font-semibold mb-4"
+              >
+                Rate Limit Reached
+              </motion.h3>
+              
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="text-muted-foreground mb-6 max-w-md mx-auto"
+              >
+                {rateLimitMessage}
+              </motion.p>
+              
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7 }}
+                className="text-sm text-muted-foreground/60"
+              >
+                You can reach me directly at{' '}
+                <a 
+                  href="mailto:acharyaaayush2k4@gmail.com" 
+                  className="text-foreground underline hover:text-foreground/80 transition-colors"
+                >
+                  acharyaaayush2k4@gmail.com
+                </a>
+              </motion.p>
+            </motion.div>
+          ) : (
+            <>
+              {/* Contact Form - Glassmorphic */}
+              <motion.form
+                onSubmit={handleSubmit(onSubmit)}
+                initial={{ opacity: 0, y: 20 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: 0.3, duration: 0.6 }}
+                className="space-y-6 p-8 rounded-2xl backdrop-blur-xl bg-background/30 border border-foreground/10 shadow-2xl"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.4)',
+                  backdropFilter: 'blur(20px)',
+                  WebkitBackdropFilter: 'blur(20px)',
+                }}
+              >
             {/* Name Fields */}
             <motion.div 
               className="grid grid-cols-1 md:grid-cols-2 gap-6"
@@ -319,7 +470,7 @@ const Contact = () => {
             >
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isRateLimited}
                 className="w-full bg-foreground text-background hover:bg-foreground/90 font-medium py-6 text-base transition-all duration-300 hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 group relative overflow-hidden"
               >
                 <span className="relative z-10">
@@ -340,6 +491,8 @@ const Contact = () => {
               </Button>
             </motion.div>
           </motion.form>
+          </>
+          )}
 
           {/* Social Links */}
           <motion.div
