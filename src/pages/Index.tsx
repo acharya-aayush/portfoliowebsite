@@ -6,11 +6,15 @@ import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
 import Footer from '@/components/Footer';
 import { RandomLoadingScreen } from '@/components/ui/random-loaders';
+import ShikshaFortune from '@/components/ShikshaFortune';
+import ScrollProgress from '@/components/ScrollProgress';
+import MillenniumFalconCursor from '@/components/MillenniumFalconCursor';
 
 // Lazy load heavy components
 const About = lazy(() => import('@/components/About'));
-const Skills = lazy(() => import('@/components/Skills'));
-const Projects = lazy(() => import('@/components/Projects'));
+const Skills = lazy(() => import("@/components/Skills"));
+const CodeAndChiya = lazy(() => import("@/components/CodeAndChiya"));
+const Projects = lazy(() => import("@/components/Projects"));
 const ProjectsDemo = lazy(() => import('@/components/ProjectsDemo'));
 const Contact = lazy(() => import('@/components/Contact'));
 const EasterEgg = lazy(() => import('@/components/EasterEgg'));
@@ -52,12 +56,17 @@ const Index = () => {
             transition={{ duration: ANIMATION_TIMINGS.FADE_OUT }}
             className="min-h-screen"
           >
+            {/* Scroll Progress Indicator */}
+            <ScrollProgress />
+            {/* Custom Millennium Falcon Cursor */}
+            <MillenniumFalconCursor />
             <Navbar />
             <main>
               <Hero />
               <Suspense fallback={<div className="min-h-screen" />}>
                 <About />
                 <Skills />
+                <CodeAndChiya />
                 <Projects />
                 {/* <ProjectsDemo /> */}
                 <Contact />
@@ -65,6 +74,8 @@ const Index = () => {
               </Suspense>
             </main>
             <Footer />
+            {/* Global Fortune Teller Easter Egg - Works everywhere on the page */}
+            <ShikshaFortune />
           </motion.div>
         )}
       </AnimatePresence>

@@ -23,3 +23,14 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Documentation files (exclude README)
+*.md
+!README.md
+!readme.md
+!README.MD

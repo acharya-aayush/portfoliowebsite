@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { ShikshaFortuneButton } from './ShikshaFortune';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -42,16 +43,18 @@ const Footer = () => {
               ))}
             </motion.nav>
 
-            {/* Copyright */}
+            {/* Copyright with Easter Egg */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-center md:text-right"
+              className="text-center md:text-right flex items-center gap-3"
             >
               <p className="text-sm text-muted-foreground">
                 © {currentYear} Aayush Acharya. All rights reserved.
               </p>
+              {/* Hidden Fortune Cookie - Click to reveal! */}
+              <ShikshaFortuneButton />
             </motion.div>
           </div>
 

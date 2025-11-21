@@ -1249,7 +1249,7 @@ const RecordingLoader = () => {
 const BicycleLoader = () => {
   return (
     <div className="bicycle-loader-wrapper">
-      <svg className="bicycle-loader" viewBox="0 0 48 30" width="150px" height="auto">
+      <svg className="bicycle-loader" viewBox="0 0 48 30" width="150px" height="94px">
         <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1">
           <g transform="translate(9.5,19)">
             <circle className="loader_tire" r="9" strokeDasharray="56.549 56.549"></circle>
