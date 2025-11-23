@@ -42,6 +42,10 @@ export default {
         gold: {
           DEFAULT: "hsl(var(--gold))",
           foreground: "hsl(var(--gold-foreground))",
+          primary: "#d4af37",
+          bright: "#f4cf47",
+          warm: "#c9a961",
+          deep: "#b8943a",
         },
       },
       fontFamily: {

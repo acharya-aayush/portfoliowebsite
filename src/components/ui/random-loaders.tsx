@@ -2067,22 +2067,22 @@ export const RandomLoadingScreen = () => {
 
   useEffect(() => {
     // Randomize loader on mount
-    // 0: Blackhole (25%)
-    // 1: Bicycle (25%)
-    // 2: Recording (8%)
+    // 0: Blackhole (24.75%)
+    // 1: Bicycle (24.75%)
+    // 2: Recording (1%) - LAPTOP WITH AUDIO
     // 3: Cube (0%) - DISABLED
-    // 4: Walking Character (22%)
-    // 5: Astronaut (20%)
+    // 4: Walking Character (24.75%)
+    // 5: Astronaut (24.75%)
     
     const random = Math.random();
     
-    if (random < 0.25) {
+    if (random < 0.001) {
+      setLoaderType(2); // Recording (1%)
+    } else if (random < 0.2575) { // 0.01 + 0.2475
       setLoaderType(0); // Blackhole
-    } else if (random < 0.5) { // 0.25 + 0.25
+    } else if (random < 0.505) { // 0.2575 + 0.2475
       setLoaderType(1); // Bicycle
-    } else if (random < 0.58) { // 0.5 + 0.08
-      setLoaderType(2); // Recording
-    } else if (random < 0.8) { // 0.58 + 0.22
+    } else if (random < 0.7525) { // 0.505 + 0.2475
       setLoaderType(4); // Walking Character
     } else {
       setLoaderType(5); // Astronaut

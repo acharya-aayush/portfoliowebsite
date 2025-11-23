@@ -1,7 +1,15 @@
 import { motion } from 'framer-motion';
 import { useInView } from 'framer-motion';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { ShootingCrosshair } from './ui/shooting-crosshair';
+
+interface Star {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  duration: number;
+}
 
 const skillsData = {
   frontend: [
@@ -48,6 +56,19 @@ const Skills = () => {
   const [shatteredTexts, setShatteredTexts] = useState<Set<string>>(new Set()); // Track all shattered text elements
   const [isInSection, setIsInSection] = useState(false); // Track if mouse is in skills section
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 }); // Track cursor position
+  const [stars, setStars] = useState<Star[]>([]);
+
+  // Generate stars background
+  useEffect(() => {
+    const newStars: Star[] = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 2 + 1,
+      duration: Math.random() * 3 + 2,
+    }));
+    setStars(newStars);
+  }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -158,7 +179,7 @@ const Skills = () => {
     <section 
       ref={sectionRef} 
       id="skills" 
-      className="py-20 md:py-32 relative bg-secondary/20" 
+      className="py-20 md:py-32 relative bg-background" 
       style={{ 
         position: 'relative',
         isolation: 'isolate',
@@ -173,6 +194,31 @@ const Skills = () => {
         }
       }}
     >
+      {/* Floating stars background */}
+      <div className="absolute inset-0 pointer-events-none">
+        {stars.map((star) => (
+          <motion.div
+            key={star.id}
+            className="absolute rounded-full bg-white"
+            style={{
+              left: `${star.x}%`,
+              top: `${star.y}%`,
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+            }}
+            animate={{
+              opacity: [0.1, 0.6, 0.1],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              duration: star.duration,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        ))}
+      </div>
+
       {/* Custom Animated Cursor */}
       {isInSection && (
         <div

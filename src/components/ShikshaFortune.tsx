@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Heart, X } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 
 const ShikshaFortune = () => {
   const [isRevealed, setIsRevealed] = useState(false);
@@ -126,11 +126,14 @@ const ShikshaFortune = () => {
                   <Sparkles className="w-6 h-6 text-yellow-400" />
                 </motion.div>
                 <motion.div
-                  className="absolute bottom-4 left-4"
-                  animate={{ rotate: -360 }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                  className="absolute bottom-4 left-4 text-3xl"
+                  animate={{ 
+                    rotate: [-5, 5, -5],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <Heart className="w-6 h-6 text-pink-400 fill-pink-400" />
+                  👑
                 </motion.div>
 
                 {/* Title */}
@@ -263,9 +266,15 @@ const ShikshaFortune = () => {
 
 // Button component for Footer
 export const ShikshaFortuneButton = () => {
+  // 1/30 chance to spawn the button
+  const [isEnabled] = useState(() => Math.random() < 1/30);
+  
   const handleClick = () => {
     window.dispatchEvent(new Event('openShikshaFortune'));
   };
+
+  // Don't render if not enabled
+  if (!isEnabled) return null;
 
   return (
     <div className="relative">

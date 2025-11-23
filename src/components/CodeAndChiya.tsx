@@ -37,6 +37,9 @@ export default function CodeAndChiya() {
     console.error('Error loading blog posts:', error);
   }
 
+  // Work in progress flag
+  const isWorkInProgress = true;
+
   useEffect(() => {
     // Generate random stars for cosmic background
     const newStars: Star[] = Array.from({ length: 30 }, (_, i) => ({
@@ -110,6 +113,37 @@ export default function CodeAndChiya() {
           </p>
         </motion.div>
 
+        {/* Work in Progress Banner */}
+        {isWorkInProgress && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={isInView ? { opacity: 1, scale: 1 } : {}}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mb-12 relative"
+          >
+            <div className="relative p-8 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-lg overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#d4af37]/10 via-transparent to-transparent"></div>
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-center gap-8">
+                {/* Work in Progress Image */}
+                <div className="flex-shrink-0">
+                  <img 
+                    src="public/blog/images/workinprogress.png" 
+                    alt="Work in Progress"
+                    className="w-64 h-auto object-contain opacity-90 grayscale hover:grayscale-0 transition-all duration-300"
+                  />
+                </div>
+                {/* Text Content */}
+                <div className="text-center md:text-left">
+                  <h3 className="text-2xl font-semibold text-white mb-2">Coming Soon</h3>
+                  <p className="text-gray-400 max-w-md">
+                    The blog system is currently under construction. Check back soon for technical articles, stories, and thoughts!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Blog Posts Grid */}
         <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
@@ -123,7 +157,7 @@ export default function CodeAndChiya() {
           initial="hidden"
           animate={isInView ? "show" : "hidden"}
         >
-          {blogPosts.map((post) => {
+          {!isWorkInProgress && blogPosts.map((post) => {
             const Icon = categoryIcons[post.category] || Code;
             
             return (
@@ -213,29 +247,31 @@ export default function CodeAndChiya() {
         </motion.div>
 
         {/* View All Posts Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          className="text-center mt-12"
-        >
-          <Link
-            to="/blog"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#d4af37] to-[#f4cf47] text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-[#d4af37]/50 transition-all duration-300 group"
+        {!isWorkInProgress && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={isInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="text-center mt-12"
           >
-            View All Posts
-            <motion.div
-              animate={{ x: [0, 5, 0] }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
+            <Link
+              to="/blog"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#d4af37] to-[#f4cf47] text-black font-semibold rounded-lg hover:shadow-lg hover:shadow-[#d4af37]/50 transition-all duration-300 group"
             >
-              <ArrowRight className="w-4 h-4" />
-            </motion.div>
-          </Link>
-        </motion.div>
+              View All Posts
+              <motion.div
+                animate={{ x: [0, 5, 0] }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              >
+                <ArrowRight className="w-4 h-4" />
+              </motion.div>
+            </Link>
+          </motion.div>
+        )}
       </div>
     </section>
   );

@@ -1,7 +1,15 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useInView } from 'framer-motion';
-import { useRef, useState, MouseEvent } from 'react';
+import { useRef, useState, MouseEvent, useEffect } from 'react';
 import { ExternalLink, Github } from 'lucide-react';
+
+interface Star {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  duration: number;
+}
 
 // Featured projects data
 const projectsData = [
@@ -173,6 +181,19 @@ const Projects = () => {
   const sectionRef = useRef(null);
   const projectsListRef = useRef(null);
   const isInView = useInView(ref, { once: false, margin: '-50px' }); // Changed to false for continuous animation
+  const [stars, setStars] = useState<Star[]>([]);
+  
+  // Generate stars background
+  useEffect(() => {
+    const newStars: Star[] = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 2 + 1,
+      duration: Math.random() * 3 + 2,
+    }));
+    setStars(newStars);
+  }, []);
   
   // Parallax scroll effects - START FROM VISION MATE (projects list)
   const { scrollYProgress } = useScroll({
@@ -182,6 +203,31 @@ const Projects = () => {
 
   return (
     <section ref={sectionRef} id="projects" className="py-20 md:py-32 relative overflow-hidden">
+      {/* Floating stars background */}
+      <div className="absolute inset-0 pointer-events-none">
+        {stars.map((star) => (
+          <motion.div
+            key={star.id}
+            className="absolute rounded-full bg-white"
+            style={{
+              left: `${star.x}%`,
+              top: `${star.y}%`,
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+            }}
+            animate={{
+              opacity: [0.1, 0.6, 0.1],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              duration: star.duration,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        ))}
+      </div>
+
       {/* Decorative Elements */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold/30 to-transparent" />
 

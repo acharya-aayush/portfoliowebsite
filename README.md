@@ -299,6 +299,14 @@ Started with HTML, CSS, JavaScript fundamentals. Learned responsive design with 
 
 ---
 
+## 🎨 Asset Credits
+
+### 3D Models
+- **Starfighter Models** (Interceptor MK-I, Vanguard MK-II, Phantom MK-II): [Ultimate Space Kit](https://quaternius.com) by Quaternius (CC0)
+- **Battlecruiser MK-IV**: [CGTrader](https://cgtrader.com) - Large Spaceship Low Poly Model
+
+---
+
 ## 📜 License
 
 © 2025 AAYUSH ACHARYA. ALL RIGHTS RESERVED.

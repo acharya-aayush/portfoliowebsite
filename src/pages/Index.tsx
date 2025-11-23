@@ -13,6 +13,7 @@ import MillenniumFalconCursor from '@/components/MillenniumFalconCursor';
 // Lazy load heavy components
 const About = lazy(() => import('@/components/About'));
 const Skills = lazy(() => import("@/components/Skills"));
+const CosmicJourney = lazy(() => import('@/components/CosmicJourney'));
 const CodeAndChiya = lazy(() => import("@/components/CodeAndChiya"));
 const Projects = lazy(() => import("@/components/Projects"));
 const ProjectsDemo = lazy(() => import('@/components/ProjectsDemo'));
@@ -66,7 +67,8 @@ const Index = () => {
               <Suspense fallback={<div className="min-h-screen" />}>
                 <About />
                 <Skills />
-                <CodeAndChiya />
+                <CosmicJourney />
+                {/* <CodeAndChiya /> */}
                 <Projects />
                 {/* <ProjectsDemo /> */}
                 <Contact />

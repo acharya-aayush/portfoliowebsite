@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
-import { Rocket, Calendar, Code, Lightbulb, Trophy, Sparkles } from 'lucide-react';
+import { Rocket, Calendar, Code, Lightbulb, Trophy, Sparkles, GraduationCap, Cpu, Database, Brain, Award, Zap } from 'lucide-react';
 
 interface Milestone {
   id: number;
@@ -15,49 +15,81 @@ const milestones: Milestone[] = [
   {
     id: 1,
     year: "2022",
-    title: "The Beginning",
-    description: "Started my journey into web development, learning the fundamentals of HTML, CSS, and JavaScript. Built my first portfolio website.",
-    icon: Sparkles,
+    title: "Foundation & First Steps",
+    description: "Embarked on the journey into software development at St. Xavier's College. Mastered HTML5, CSS3, and JavaScript fundamentals while exploring responsive design patterns with Bootstrap and Tailwind CSS. Established core programming principles and coding discipline.",
+    icon: GraduationCap,
     color: "#f4cf47"
   },
   {
     id: 2,
     year: "2023",
-    title: "React Mastery",
-    description: "Dove deep into React ecosystem, learning TypeScript, state management, and modern development practices.",
+    title: "Algorithmic Thinking",
+    description: "Deep dive into C/C++ programming, data structures, and algorithmic problem-solving. Strengthened computational thinking through rigorous study of statistics, discrete mathematics, and complexity analysis. Built solid foundation for scalable software architecture.",
     icon: Code,
     color: "#d4af37"
   },
   {
     id: 3,
-    year: "2023",
-    title: "First Big Project",
-    description: "Developed Chitragupta AI - an AI-powered OCR system using Tesseract.js and OpenCV for document processing.",
-    icon: Lightbulb,
+    year: "2023-2024",
+    title: "Modern Web & React",
+    description: "Transitioned to modern JavaScript frameworks, specializing in React and TypeScript. Mastered component-based architecture, state management patterns, and hooks ecosystem. Developed dynamic, performant single-page applications with industry-standard practices.",
+    icon: Sparkles,
     color: "#c9a961"
   },
   {
     id: 4,
     year: "2024",
-    title: "Full Stack Evolution",
-    description: "Expanded into backend development with Node.js, databases, and API design. Created full-stack applications.",
-    icon: Rocket,
+    title: "Backend & Systems",
+    description: "Expanded expertise into backend development with Node.js and database systems. Comprehensive study of computer networks, DBMS theory, MySQL, and Python programming. Architected RESTful APIs and designed normalized database schemas for production applications.",
+    icon: Database,
     color: "#b8943a"
   },
   {
     id: 5,
     year: "2024",
-    title: "Production Ready",
-    description: "Deployed multiple projects to production, learned DevOps, CI/CD, and cloud infrastructure.",
-    icon: Trophy,
+    title: "Full-Stack Integration",
+    description: "Achieved full-stack proficiency by integrating frontend and backend technologies. Built end-to-end applications featuring authentication systems, real-time data processing, and cloud deployment. Implemented CI/CD pipelines and DevOps best practices.",
+    icon: Rocket,
     color: "#d4af37"
   },
   {
     id: 6,
+    year: "2024-2025",
+    title: "SXC Sandbox Victory",
+    description: "Led team to victory at St. Xavier's College Sandbox 2.0 Hackathon. Developed innovative solutions under pressure, demonstrating rapid prototyping skills, collaborative development, and effective project presentation to technical judges.",
+    icon: Trophy,
+    color: "#c9a961"
+  },
+  {
+    id: 7,
     year: "2025",
-    title: "Looking Ahead",
-    description: "Continuing to innovate, explore AI/ML integration, and build impactful solutions. The journey continues.",
-    icon: Calendar,
+    title: "AI/ML Specialization",
+    description: "Intensive bootcamp training in artificial intelligence and machine learning. Mastered neural networks, computer vision with OpenCV, and natural language processing. Applied deep learning frameworks to real-world problems with production-grade implementations.",
+    icon: Brain,
+    color: "#f4cf47"
+  },
+  {
+    id: 8,
+    year: "2025",
+    title: "Chitragupta AI & Advanced Projects",
+    description: "Architected Chitragupta AI: an intelligent OCR system leveraging Tesseract.js, OpenCV, and custom ML models for document digitization. Developed Trade Heaven trading platform and TypeSmash typing performance analyzer. Focus on scalable, production-ready applications.",
+    icon: Lightbulb,
+    color: "#b8943a"
+  },
+  {
+    id: 9,
+    year: "2025",
+    title: "Information Security",
+    description: "Completed comprehensive InfoSec bootcamp covering cryptography, network security, penetration testing methodologies, and secure coding practices. Enhanced development workflow with security-first mindset and vulnerability assessment capabilities.",
+    icon: Award,
+    color: "#d4af37"
+  },
+  {
+    id: 10,
+    year: "Present",
+    title: "Innovation & Impact",
+    description: "Continuing to push boundaries in AI/ML engineering and full-stack development. Exploring cutting-edge technologies, contributing to open-source projects, and building solutions that create meaningful impact. The odyssey continues with endless possibilities ahead.",
+    icon: Zap,
     color: "#f4cf47"
   }
 ];
