@@ -13,6 +13,13 @@ class AudioManager {
   private droneGain: GainNode | null = null;
 
   private isInitialized = false;
+  
+  // Audio pooling for performance
+  private laserPool: HTMLAudioElement[] = [];
+  private explosionPool: HTMLAudioElement[] = [];
+  private poolSize = 10;
+  private lastLaserTime = 0;
+  private laserCooldown = 0.05; // Prevent audio spam
 
   constructor() {
     // Lazy initialization to handle SSR/Next.js contexts safely if needed
@@ -150,16 +157,47 @@ class AudioManager {
   }
 
   playLaser() {
-    // Play laser.mp3 sound file
-    const laserSound = new Audio('/journey/laser.mp3');
+    // Audio pooling with cooldown to prevent spam
+    const now = performance.now() / 1000;
+    if (now - this.lastLaserTime < this.laserCooldown) return;
+    this.lastLaserTime = now;
+    
+    // Find available audio from pool or create new one
+    let laserSound = this.laserPool.find(audio => audio.paused || audio.ended);
+    
+    if (!laserSound) {
+      if (this.laserPool.length < this.poolSize) {
+        laserSound = new Audio('/journey/laser.mp3');
+        laserSound.volume = 0.3;
+        this.laserPool.push(laserSound);
+      } else {
+        // Reuse oldest sound
+        laserSound = this.laserPool[0];
+        laserSound.currentTime = 0;
+      }
+    }
+    
     laserSound.volume = 0.3;
     laserSound.play().catch(() => {});
   }
 
   playExplosion() {
-    // Play asteroid_explosion.mp3 sound file
-    const explosionSound = new Audio('/journey/asteroid_explosion.mp3');
-    explosionSound.volume = 0.4;
+    // Audio pooling for explosion sounds
+    let explosionSound = this.explosionPool.find(audio => audio.paused || audio.ended);
+    
+    if (!explosionSound) {
+      if (this.explosionPool.length < this.poolSize) {
+        explosionSound = new Audio('/journey/asteroid_explosion.mp3');
+        explosionSound.volume = 0.25;
+        this.explosionPool.push(explosionSound);
+      } else {
+        // Reuse oldest sound
+        explosionSound = this.explosionPool[0];
+        explosionSound.currentTime = 0;
+      }
+    }
+    
+    explosionSound.volume = 0.25;
     explosionSound.play().catch(() => {});
   }
 
@@ -221,6 +259,16 @@ class AudioManager {
     if (!this.ctx) return;
     
     const now = this.ctx.currentTime;
+
+    // Stop all pooled audio
+    this.laserPool.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+    this.explosionPool.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
 
     // Fade out all gains to avoid clicks
     if (this.engineGain) {

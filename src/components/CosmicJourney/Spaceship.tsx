@@ -16,8 +16,8 @@ import { SHIP_MODELS } from '@/lib/journey/ships';
 // --- CONSTANTS & LIMITS ---
 const LASER_COUNT = 100;
 const ASTEROID_COUNT = 400; // Increased density
-const PARTICLE_COUNT = 2000; 
-const TRAIL_COUNT = 2500;   
+const PARTICLE_COUNT = 1200; // Optimized for performance
+const TRAIL_COUNT = 1800; // Optimized for performance   
 
 const LASER_SPEED = 250; 
 const LASER_COOLDOWN = 0.12; 
@@ -184,6 +184,7 @@ export const Spaceship: React.FC = () => {
   const setPlayerLasers = useStore((state) => state.setPlayerLasers);
   const lastDamageTime = useRef(0);
   const INVINCIBILITY_DURATION = 2.0; // 2 seconds of invincibility after taking damage
+  const shipExploded = useRef(false);
   
   // Weapon System State (for cruiser)
   const lastMissileFire = useRef(0);
@@ -364,6 +365,33 @@ export const Spaceship: React.FC = () => {
     }
   };
 
+  const spawnShipExplosion = (pos: Vector3) => {
+    let spawned = 0;
+    const count = 150; // Large explosion for ship death
+    for (let i = 0; i < particles.current.length; i++) {
+        if (spawned >= count) break;
+        const p = particles.current[i];
+        if (p.life <= 0) {
+            p.life = 1.0; 
+            p.maxLife = 1.5 + Math.random() * 1.5; // Longer lasting
+            p.position.copy(pos);
+            const speed = 15 + Math.random() * 50; // Faster, more dramatic
+            p.velocity.set(
+                (Math.random()-0.5),
+                (Math.random()-0.5),
+                (Math.random()-0.5)
+            ).normalize().multiplyScalar(speed);
+            p.scale = 1.0 + Math.random() * 2.5; // Larger particles
+            const r = Math.random();
+            if (r > 0.7) p.color.set('#ffffff'); 
+            else if (r > 0.4) p.color.set('#ff8800'); // More orange
+            else if (r > 0.2) p.color.set('#ff3300'); // Bright red
+            else p.color.set('#ffaa00'); // Yellow-orange
+            spawned++;
+        }
+    }
+  };
+
   const spawnBoostParticles = (pos: Vector3, offsetSide: number, rotationY: number) => {
     const count = 2; 
     let spawned = 0;
@@ -454,9 +482,66 @@ export const Spaceship: React.FC = () => {
 
   // --- MAIN LOOP ---
   useFrame((state, delta) => {
-    // Stop game updates if health is 0
+    // Trigger ship explosion when health reaches 0
     if (health <= 0) {
+      if (!shipExploded.current) {
+        shipExploded.current = true;
+        // Create large explosion at ship position
+        spawnShipExplosion(shipPos.current);
+        // Play ship explosion sound with reduced volume
+        const explosionSound = new Audio('/journey/starcruiserexplosion.mp3');
+        explosionSound.volume = 0.35;
+        explosionSound.play().catch(() => {});
+      }
+      
+      // Continue updating particles for explosion effect with slow-mo
+      delta = Math.min(delta, 0.1) * 0.3; // 30% speed for slow-motion effect
+      
+      // Update particles for explosion
+      for (let i = 0; i < particles.current.length; i++) {
+        const p = particles.current[i];
+        if (p.life > 0) {
+            p.life -= delta;
+            p.position.add(p.velocity.clone().multiplyScalar(delta));
+            p.velocity.multiplyScalar(0.95); 
+            
+            // Distance-based culling
+            const distSq = p.position.distanceToSquared(shipPos.current);
+            if (distSq > 250000) {
+                p.life = 0;
+                tempObj.position.set(0, -10000, 0);
+                tempObj.scale.set(0,0,0);
+                tempObj.updateMatrix();
+                particleMeshRef.current!.setMatrixAt(i, tempObj.matrix);
+                continue;
+            }
+            
+            const scale = p.scale * (p.life / p.maxLife);
+            tempObj.position.copy(p.position);
+            tempObj.scale.setScalar(scale);
+            tempObj.lookAt(camera.position);
+            tempObj.updateMatrix();
+            particleMeshRef.current!.setMatrixAt(i, tempObj.matrix);
+            particleMeshRef.current!.setColorAt(i, p.color);
+        } else {
+            tempObj.position.set(0, -10000, 0);
+            tempObj.scale.set(0,0,0);
+            tempObj.updateMatrix();
+            particleMeshRef.current!.setMatrixAt(i, tempObj.matrix);
+        }
+      }
+      if (particleMeshRef.current && particleMeshRef.current.instanceMatrix) {
+        particleMeshRef.current.instanceMatrix.needsUpdate = true;
+        if (particleMeshRef.current.instanceColor) {
+            particleMeshRef.current.instanceColor.needsUpdate = true;
+        }
+      }
+      
+      // Stop all other updates
       return;
+    } else {
+      // Reset explosion flag when health is restored
+      shipExploded.current = false;
     }
 
     // Clamp delta to prevent huge jumps on first frame or lag spikes
@@ -864,13 +949,24 @@ export const Spaceship: React.FC = () => {
     if (asteroidRef2.current && asteroidRef2.current.instanceMatrix) asteroidRef2.current.instanceMatrix.needsUpdate = true;
     if (asteroidRef3.current && asteroidRef3.current.instanceMatrix) asteroidRef3.current.instanceMatrix.needsUpdate = true;
 
-    // Particles
+    // Particles - optimized with distance culling
     for (let i = 0; i < particles.current.length; i++) {
         const p = particles.current[i];
         if (p.life > 0) {
             p.life -= delta;
             p.position.add(p.velocity.clone().multiplyScalar(delta));
             p.velocity.multiplyScalar(0.95); 
+            
+            // Distance-based culling - skip particles too far away
+            const distSq = p.position.distanceToSquared(shipPos.current);
+            if (distSq > 250000) { // ~500 units squared
+                p.life = 0;
+                tempObj.position.set(0, -10000, 0);
+                tempObj.scale.set(0,0,0);
+                tempObj.updateMatrix();
+                particleMeshRef.current!.setMatrixAt(i, tempObj.matrix);
+                continue;
+            }
             
             const scale = p.scale * (p.life / p.maxLife);
             tempObj.position.copy(p.position);
@@ -893,12 +989,23 @@ export const Spaceship: React.FC = () => {
         }
     }
 
-    // Trails
+    // Trails - optimized with distance culling
     for (let i = 0; i < trails.current.length; i++) {
         const t = trails.current[i];
         if (t.active) {
             t.life -= delta;
             if (t.life <= 0) t.active = false;
+            
+            // Distance-based culling for trails
+            const distSq = t.position.distanceToSquared(shipPos.current);
+            if (distSq > 300000) { // ~550 units squared
+                t.active = false;
+                tempObj.position.set(0, -10000, 0);
+                tempObj.scale.set(0,0,0);
+                tempObj.updateMatrix();
+                trailMeshRef.current!.setMatrixAt(i, tempObj.matrix);
+                continue;
+            }
             
             const lifeRatio = t.life / t.maxLife;
             // Shrink as it dies

@@ -26,10 +26,15 @@ const Hero = memo(() => {
         refresh
       />
 
-      {/* Interactive Particle Text - Full Page Coverage */}
+      {/* Interactive Particle Text - Responsive Full Page Coverage */}
       <div className="absolute inset-0" style={{ zIndex: Z_INDEX.PARTICLES }} aria-hidden="true">
-        <div className="w-full h-full flex items-center justify-center">
-          <InteractiveText text="AAYUSH ACHARYA" className="w-full h-full" />
+        <div className="w-full h-full flex items-center justify-center px-4 sm:px-6 md:px-8">
+          <div className="text-[clamp(2rem,8vw,10rem)] w-full h-full flex items-center justify-center">
+            <InteractiveText 
+              text="AAYUSH ACHARYA" 
+              className="w-full h-full max-w-[95vw] sm:max-w-[90vw] md:max-w-full" 
+            />
+          </div>
         </div>
       </div>
 
@@ -44,8 +49,8 @@ const Hero = memo(() => {
         {/* Invisible heading for SEO */}
         <h1 className="sr-only">Aayush Acharya</h1>
         
-        {/* Spacer for particle text */}
-        <div className="h-48 sm:h-56 md:h-64 lg:h-72 mb-12" />
+        {/* Spacer for particle text - Mobile responsive with more spacing */}
+        <div className="h-32 sm:h-48 md:h-56 lg:h-64 xl:h-72 mb-12 sm:mb-16" />
           
         {/* Role Animation */}
         <div className="mb-12">

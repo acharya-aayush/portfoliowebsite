@@ -206,7 +206,7 @@ const About = () => {
       {/* Decorative Elements */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold/30 to-transparent z-10" />
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="container mx-auto px-6 sm:px-8 md:px-10 lg:px-12 xl:px-8 relative z-10">
         <motion.div
           ref={ref}
           initial={{ opacity: 0, y: 30 }}

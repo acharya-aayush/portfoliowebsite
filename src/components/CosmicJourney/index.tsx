@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useRef } from 'react';
 import { CosmicScene } from './CosmicScene';
 import { UIOverlay } from './UIOverlay';
 import { ShipSelector } from './ShipSelector';
@@ -7,11 +7,13 @@ import { WaypointNotifications } from './WaypointNotifications';
 import { CruiserHUD } from './CruiserHUD';
 import { DamageOverlay } from './DamageOverlay';
 import { GameOver } from './GameOver';
+import { VirtualGamepad } from './VirtualGamepad';
 import { audioManager } from '@/lib/journey/AudioManager';
 import { useJourneyStore } from '@/lib/journey/store';
 import { LightsaberLoader } from '../ui/lightsaber-loader';
 import { COLORS } from '@/lib/journey/constants';
-import { SHIP_MODELS, unlockAllShips, isTutorialCompleted, setTutorialCompleted } from '@/lib/journey/ships';
+import { SHIP_MODELS, unlockAllShips, isTutorialCompleted, setTutorialCompleted, setTutorialAchievement, hasTutorialAchievement } from '@/lib/journey/ships';
+import { preloadGameAssets } from '@/lib/journey/AssetPreloader';
 
 export default function CosmicJourneyWrapper() {
   const [isMobile, setIsMobile] = useState(false);
@@ -20,8 +22,12 @@ export default function CosmicJourneyWrapper() {
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
   const [showShipSelector, setShowShipSelector] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [gameMode, setGameMode] = useState<'play' | 'explore'>('play');
   const gameStarted = useJourneyStore(state => state.gameStarted);
   const setGameStarted = useJourneyStore(state => state.setGameStarted);
+  const setStoreGameMode = useJourneyStore(state => state.setGameMode);
   const selectedShip = useJourneyStore(state => state.selectedShip);
   const setSelectedShip = useJourneyStore(state => state.setSelectedShip);
   const health = useJourneyStore(state => state.health);
@@ -30,11 +36,13 @@ export default function CosmicJourneyWrapper() {
   const resetAsteroids = useJourneyStore(state => state.resetAsteroids);
   const enemiesDestroyed = useJourneyStore(state => state.enemiesDestroyed);
   const resetEnemies = useJourneyStore(state => state.resetEnemies);
+  const resetEnemySpawnCheckpoints = useJourneyStore(state => state.resetEnemySpawnCheckpoints);
   const gameStartTime = useJourneyStore(state => state.gameStartTime);
   const setGameStartTime = useJourneyStore(state => state.setGameStartTime);
   
   const [showGameOver, setShowGameOver] = useState(false);
   const [survivalTime, setSurvivalTime] = useState(0);
+  const [showAchievement, setShowAchievement] = useState(false);
 
   const currentShipData = SHIP_MODELS.find(s => s.id === selectedShip) || SHIP_MODELS[0];
 
@@ -119,32 +127,84 @@ export default function CosmicJourneyWrapper() {
     }
   }, [gameStarted]);
 
-  const handleStart = () => {
+  const handleStart = async (mode: 'play' | 'explore' = 'play') => {
+    setIsLoading(true);
+    setLoadingProgress(0);
+    setGameMode(mode);
+    setStoreGameMode(mode);
+    setShowGameOver(false);
+    
+    // Preload all game assets
+    const startTime = Date.now();
+    await preloadGameAssets((progress) => {
+      setLoadingProgress(progress);
+    });
+    
+    // Ensure minimum loading time of 2.5 seconds
+    const elapsed = Date.now() - startTime;
+    const minLoadTime = 2500;
+    if (elapsed < minLoadTime) {
+      await new Promise(resolve => setTimeout(resolve, minLoadTime - elapsed));
+    }
+    
+    // Initialize game state
     setGameStarted(true);
     setShowGameOver(false);
     resetHealth();
     resetAsteroids();
     setGameStartTime(Date.now());
-    // Skip tutorial if already completed
-    if (isTutorialCompleted()) {
-      setTutorialStep(6);
+    
+    // Skip tutorial in explore mode or if already completed
+    if (mode === 'explore' || isTutorialCompleted()) {
+      setTutorialStep(7); // Skip all tutorial steps
     } else {
       setTutorialStep(0);
       setCompletedSteps(new Set());
       setPressedKeys(new Set());
     }
+    
     audioManager.initialize().catch(e => console.error("Audio init failed", e));
     audioManager.resume();
+    
+    setIsLoading(false);
   };
 
-  const handleRestart = () => {
+  const resetPosition = useJourneyStore(state => state.resetPosition);
+  const setPlayerLasers = useJourneyStore(state => state.setPlayerLasers);
+  
+  const handleRestart = async () => {
+    // Reset game over state first
     setShowGameOver(false);
+    setIsLoading(true);
+    setLoadingProgress(0);
+    
+    // Quick reload check (assets should already be preloaded)
+    const startTime = Date.now();
+    await preloadGameAssets((progress) => {
+      setLoadingProgress(progress);
+    });
+    
+    // Shorter minimum load time for restart (1 second)
+    const elapsed = Date.now() - startTime;
+    const minLoadTime = 1000;
+    if (elapsed < minLoadTime) {
+      await new Promise(resolve => setTimeout(resolve, minLoadTime - elapsed));
+    }
+    
+    // Reset all game state
     resetHealth();
     resetAsteroids();
     resetEnemies();
+    resetEnemySpawnCheckpoints();
+    resetPosition();
+    setPlayerLasers([]); // Clear all lasers
     setGameStartTime(Date.now());
+    
+    // Restart with same game mode
     setGameStarted(true);
     audioManager.resume();
+    
+    setIsLoading(false);
   };
 
   const handleMainMenu = () => {
@@ -183,7 +243,8 @@ export default function CosmicJourneyWrapper() {
         setPressedKeys(prev => new Set(prev).add(e.key));
       } else if (step === 4 && key === 'f') {
         setPressedKeys(prev => new Set(prev).add('f'));
-      } else if (step === 5 && e.key === 'Shift') {
+      } else if (step === 6 && e.key === 'Shift') {
+        // Step 6 is now boost/shift
         setPressedKeys(prev => new Set(prev).add('shift'));
       }
     };
@@ -209,24 +270,39 @@ export default function CosmicJourneyWrapper() {
       isComplete = true;
     } else if (step === 4 && pressedKeys.has('f')) {
       isComplete = true;
-    } else if (step === 5 && pressedKeys.has('shift')) {
+    } else if (step === 5 && enemiesDestroyed >= 1) {
+      // Tutorial step 5: destroy 1 enemy ship
+      isComplete = true;
+    } else if (step === 6 && pressedKeys.has('shift')) {
+      // Tutorial step 6: boost speed
       isComplete = true;
     }
 
     if (isComplete) {
       setCompletedSteps(prev => new Set(prev).add(step));
       setTimeout(() => {
-        if (step < 5) {
+        if (step < 4) {
           setTutorialStep(step + 1);
           setPressedKeys(new Set());
-        } else {
-          // All tutorials complete - save to cookie
-          setTutorialCompleted();
+        } else if (step === 4) {
+          // Move to combat tutorial (enemy spawns at step 5)
+          setTimeout(() => setTutorialStep(5), 1000);
+        } else if (step === 5) {
+          // Move to boost tutorial
           setTimeout(() => setTutorialStep(6), 1000);
+        } else if (step === 6) {
+          // All tutorials complete - save to cookie and show achievement
+          setTutorialCompleted();
+          setTutorialAchievement();
+          setShowAchievement(true);
+          setTimeout(() => {
+            setTutorialStep(7);
+            setTimeout(() => setShowAchievement(false), 5000);
+          }, 1000);
         }
       }, 800);
     }
-  }, [pressedKeys, tutorialStep, gameStarted]);
+  }, [pressedKeys, tutorialStep, gameStarted, enemiesDestroyed]);
 
   // Mobile - still allow 3D experience
   // Remove mobile check to enable 3D on all devices
@@ -234,17 +310,35 @@ export default function CosmicJourneyWrapper() {
   // Desktop experience
   return (
     <section id="journey" className="relative min-h-screen bg-black overflow-hidden">
+      {/* Loading Screen - Fixed position fullscreen overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 flex flex-col items-center justify-center bg-black z-[9999]">
+          <LightsaberLoader />
+          <div className="mt-8 text-center">
+            <div className="text-white/60 text-sm font-mono mb-2">Loading Assets...</div>
+            <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                style={{ width: `${loadingProgress}%` }}
+              />
+            </div>
+            <div className="text-white/40 text-xs font-mono mt-1">{loadingProgress}%</div>
+          </div>
+        </div>
+      )}
+      
       <div className="relative w-full h-screen">
         
         {/* 3D Scene (Only loads when game starts) */}
         {gameStarted && (
           <div className="absolute inset-0 z-0">
-            <Suspense fallback={
-              <div className="absolute inset-0 flex items-center justify-center bg-black z-50">
-                <LightsaberLoader />
-              </div>
-            }>
-              <CosmicScene selectedShip={selectedShip} />
+            <Suspense fallback={null}>
+              <CosmicScene 
+                selectedShip={selectedShip} 
+                tutorialComplete={tutorialStep > 6} 
+                tutorialStep={tutorialStep}
+                gameMode={gameMode}
+              />
             </Suspense>
           </div>
         )}
@@ -347,15 +441,34 @@ export default function CosmicJourneyWrapper() {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={handleStart}
-                    className="group relative px-16 py-5 border border-gold-primary/40 bg-white/[0.03] hover:bg-white/[0.08] hover:border-gold-primary/60 hover:shadow-[0_0_30px_rgba(212,175,55,0.2)] transition-all duration-500 ease-out rounded-lg overflow-hidden backdrop-blur-xl"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-gold-primary/0 via-gold-primary/10 to-gold-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                    <span className="relative z-10 text-gold-primary/90 group-hover:text-gold-primary font-bold text-2xl tracking-[0.3em] transition-colors duration-300">
-                      LAUNCH
-                    </span>
-                  </button>
+                  {/* Game Mode Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                    <button 
+                      onClick={() => handleStart('play')}
+                      className="group relative flex-1 px-12 py-5 border border-gold-primary/40 bg-white/[0.03] hover:bg-white/[0.08] hover:border-gold-primary/60 hover:shadow-[0_0_30px_rgba(212,175,55,0.2)] transition-all duration-500 ease-out rounded-lg overflow-hidden backdrop-blur-xl"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-gold-primary/0 via-gold-primary/10 to-gold-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                      <div className="relative z-10 flex flex-col items-center">
+                        <span className="text-gold-primary/90 group-hover:text-gold-primary font-bold text-xl sm:text-2xl tracking-[0.2em] transition-colors duration-300">
+                          PLAY
+                        </span>
+                        <span className="text-gold-primary/40 text-xs mt-1">Combat Mode</span>
+                      </div>
+                    </button>
+                    
+                    <button 
+                      onClick={() => handleStart('explore')}
+                      className="group relative flex-1 px-12 py-5 border border-blue-400/40 bg-white/[0.03] hover:bg-white/[0.08] hover:border-blue-400/60 hover:shadow-[0_0_30px_rgba(96,165,250,0.2)] transition-all duration-500 ease-out rounded-lg overflow-hidden backdrop-blur-xl"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-400/0 via-blue-400/10 to-blue-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                      <div className="relative z-10 flex flex-col items-center">
+                        <span className="text-blue-400/90 group-hover:text-blue-400 font-bold text-xl sm:text-2xl tracking-[0.2em] transition-colors duration-300">
+                          EXPLORE
+                        </span>
+                        <span className="text-blue-400/40 text-xs mt-1">Peaceful Mode</span>
+                      </div>
+                    </button>
+                  </div>
 
                   {/* Controls grid */}
                   <div className="grid grid-cols-2 gap-4 w-full max-w-md">
@@ -408,7 +521,7 @@ export default function CosmicJourneyWrapper() {
             <DamageOverlay />
             
             {/* Tutorial tooltips */}
-            {tutorialStep < 6 && (
+            {tutorialStep < 7 && (
               <div className="absolute right-8 top-1/2 -translate-y-1/2 z-[55] flex flex-col gap-4 max-w-xs">
                 {[
                   { step: 0, keys: ['W', 'S'], pressKeys: ['w', 's'], action: 'Thrust Forward/Back' },
@@ -416,33 +529,40 @@ export default function CosmicJourneyWrapper() {
                   { step: 2, keys: ['←', '→'], pressKeys: ['ArrowLeft', 'ArrowRight'], action: 'Turn Ship' },
                   { step: 3, keys: ['↑', '↓'], pressKeys: ['ArrowUp', 'ArrowDown'], action: 'Elevation Control' },
                   { step: 4, keys: ['F'], pressKeys: ['f'], action: 'Fire Lasers' },
-                  { step: 5, keys: ['Shift'], pressKeys: ['shift'], action: 'Boost Speed' }
+                  { step: 5, keys: ['🎯'], pressKeys: [], action: 'Destroy Enemy Ship', isSpecial: true },
+                  { step: 6, keys: ['Shift'], pressKeys: ['shift'], action: 'Boost Speed (Shift to Warp)' }
                 ].map((tutorial) => {
                   const isActive = tutorialStep === tutorial.step;
                   const isCompleted = completedSteps.has(tutorial.step);
                   
                   if (!isActive && !isCompleted) return null;
                   
+                  const isSpecial = (tutorial as any).isSpecial;
+                  
                   return (
                     <div
                       key={tutorial.step}
-                      className={`relative p-4 rounded-xl border backdrop-blur-2xl transition-all duration-700 ${
+                      className={`relative p-3 sm:p-4 rounded-xl border backdrop-blur-2xl transition-all duration-700 ${
                         isCompleted 
                           ? 'border-white/10 bg-white/5 animate-fadeOut'
+                          : isSpecial
+                          ? 'border-red-500/40 bg-red-950/30 animate-fadeIn'
                           : 'border-white/20 bg-black/50 animate-fadeIn'
                       }`}
                     >
-                      <div className="relative z-10 flex items-center gap-4">
-                        <div className="flex gap-2">
+                      <div className="relative z-10 flex items-center gap-2 sm:gap-4">
+                        <div className="flex gap-1 sm:gap-2">
                           {tutorial.keys.map((key, i) => {
-                            const isPressed = pressedKeys.has(tutorial.pressKeys[i]);
+                            const isPressed = tutorial.pressKeys[i] && pressedKeys.has(tutorial.pressKeys[i]);
                             return (
                               <div 
                                 key={i} 
-                                className={`px-3 py-2 border rounded font-mono text-sm min-w-[2.5rem] text-center transition-all duration-300 ${
-                                  isPressed 
-                                    ? 'bg-white/30 border-white/40 text-white scale-105' 
-                                    : 'bg-white/10 border-white/20 text-white/80'
+                                className={`px-2 sm:px-3 py-1.5 sm:py-2 border rounded text-xs sm:text-sm min-w-[2rem] sm:min-w-[2.5rem] text-center transition-all duration-300 ${
+                                  isSpecial
+                                    ? 'bg-red-500/20 border-red-500/40 text-red-200 text-xl sm:text-2xl'
+                                    : isPressed 
+                                    ? 'bg-white/30 border-white/40 text-white scale-105 font-mono' 
+                                    : 'bg-white/10 border-white/20 text-white/80 font-mono'
                                 }`}
                               >
                                 {key}
@@ -450,13 +570,15 @@ export default function CosmicJourneyWrapper() {
                             );
                           })}
                         </div>
-                        <div className="flex-1">
-                          <div className="text-gray-200 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-xs sm:text-sm truncate sm:whitespace-normal ${
+                            isSpecial ? 'text-red-200 font-semibold' : 'text-gray-200'
+                          }`}>
                             {tutorial.action}
                           </div>
                         </div>
                         {isCompleted && (
-                          <div className="text-white/60 text-sm animate-fadeIn">✓</div>
+                          <div className="text-white/60 text-xs sm:text-sm animate-fadeIn shrink-0">✓</div>
                         )}
                       </div>
                     </div>
@@ -465,10 +587,51 @@ export default function CosmicJourneyWrapper() {
               </div>
             )}
             
+            {/* Tutorial Achievement - Mobile Responsive */}
+            {showAchievement && (
+              <div className="absolute top-20 sm:top-24 right-4 sm:right-8 z-[65] animate-fadeIn max-w-[90vw] sm:max-w-none">
+                <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 backdrop-blur-md border-2 border-yellow-500/50 rounded-lg p-3 sm:p-4 shadow-[0_0_30px_rgba(234,179,8,0.3)]">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="text-2xl sm:text-3xl">🏆</span>
+                    <div>
+                      <div className="text-yellow-400 font-bold text-xs sm:text-sm">Achievement Unlocked!</div>
+                      <div className="text-white text-[10px] sm:text-xs">Combat Training Complete</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Cinematic black bars - Above HUD */}
             <div className="absolute top-0 left-0 right-0 h-[8vh] bg-gradient-to-b from-black to-transparent z-[60] pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 right-0 h-[8vh] bg-gradient-to-t from-black to-transparent z-[60] pointer-events-none"></div>
           </>
+        )}
+
+        {/* Virtual Gamepad for Mobile */}
+        {gameStarted && !showGameOver && (
+          <VirtualGamepad
+            onKeyDown={(key) => {
+              window.dispatchEvent(new KeyboardEvent('keydown', { 
+                key: key === 'ShiftLeft' ? 'Shift' : key.replace('Key', '').toLowerCase(),
+                code: key,
+                bubbles: true 
+              }));
+            }}
+            onKeyUp={(key) => {
+              window.dispatchEvent(new KeyboardEvent('keyup', { 
+                key: key === 'ShiftLeft' ? 'Shift' : key.replace('Key', '').toLowerCase(),
+                code: key,
+                bubbles: true 
+              }));
+            }}
+            onMouseDown={() => {
+              window.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            }}
+            onMouseUp={() => {
+              window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            }}
+          />
         )}
 
         {/* Ship Selector Modal */}

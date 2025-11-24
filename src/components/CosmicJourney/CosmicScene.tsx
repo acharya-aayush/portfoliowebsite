@@ -1,17 +1,63 @@
 
-import React, { useMemo, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Environment } from '@react-three/drei';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Stars, Environment, useGLTF } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { Spaceship } from './Spaceship';
 import { TimelineRoute } from './TimelineRoute';
 import { EnemyManager } from './EnemyManager';
+import { TutorialEnemyManager } from './TutorialEnemyManager';
+import { GeometryPreloader } from './GeometryPreloader';
 import { COLORS } from '@/lib/journey/constants';
 import { useJourneyStore as useStore } from '@/lib/journey/store';
 
+// Preload enemy models to prevent lag on first spawn
+useGLTF.preload('/model/large-spaceship.glb');
+useGLTF.preload('/model/Spaceship1.glb');
+
+// Component to precompile models on GPU
+const ModelPrecompiler: React.FC = () => {
+  const { gl, scene } = useThree();
+  const compiled = useRef(false);
+  
+  useEffect(() => {
+    if (compiled.current) return;
+    
+    const compile = async () => {
+      try {
+        console.log('🔧 GPU: Compiling enemy ship models...');
+        
+        // Load models
+        const largeShip = useGLTF('/model/large-spaceship.glb');
+        const regularShip = useGLTF('/model/Spaceship1.glb');
+        
+        // Create temp scene
+        const tempScene = new THREE.Scene();
+        tempScene.add(largeShip.scene.clone());
+        tempScene.add(regularShip.scene.clone());
+        
+        // Compile
+        gl.compile(tempScene, new THREE.PerspectiveCamera());
+        
+        // Cleanup
+        tempScene.clear();
+        
+        console.log('✓ GPU: Model compilation complete - no freeze on spawn!');
+        compiled.current = true;
+      } catch (error) {
+        console.error('GPU compilation error:', error);
+      }
+    };
+    
+    compile();
+  }, [gl]);
+  
+  return null;
+};
+
 const CosmicDust: React.FC = () => {
-  const count = 2000;
+  const count = 700; // Reduced from 2000 for better performance
   const mesh = useRef<THREE.Points>(null);
   
   // Use a simpler initial spread, we will recycle in useFrame
@@ -136,9 +182,12 @@ const InfiniteStars: React.FC = () => {
 
 interface CosmicSceneProps {
   selectedShip?: string;
+  tutorialComplete: boolean;
+  tutorialStep: number;
+  gameMode: 'play' | 'explore';
 }
 
-export const CosmicScene: React.FC<CosmicSceneProps> = ({ selectedShip }) => {
+export const CosmicScene: React.FC<CosmicSceneProps> = ({ selectedShip, tutorialComplete, tutorialStep, gameMode }) => {
   // Zoom out camera for cruiser to show entire large ship
   const cameraZ = selectedShip === 'cruiser' ? 8 : 5;
   const cameraY = selectedShip === 'cruiser' ? 3 : 2;
@@ -153,6 +202,9 @@ export const CosmicScene: React.FC<CosmicSceneProps> = ({ selectedShip }) => {
       <pointLight position={[10, 10, 10]} intensity={1} color={COLORS.primary} />
       <pointLight position={[-10, -10, -10]} intensity={0.5} color="#4c1d95" />
       
+      {/* GPU Model Precompiler - prevents freeze on first enemy spawn */}
+      <ModelPrecompiler />
+      
       {/* Infinite Environment Group */}
       <InfiniteStars />
       <CosmicDust />
@@ -161,17 +213,28 @@ export const CosmicScene: React.FC<CosmicSceneProps> = ({ selectedShip }) => {
       {/* Extended Fog to hide the far plane but reveal more of the world */}
       <fog attach="fog" args={['#020202', 50, 500]} />
 
+      {/* Preload geometries to prevent lag on enemy spawn */}
+      <GeometryPreloader />
+
       {/* Game Objects */}
       <Spaceship />
       <TimelineRoute />
-      <EnemyManager />
+      
+      {/* Only spawn enemies in Play mode */}
+      {gameMode === 'play' && (
+        <>
+          <TutorialEnemyManager tutorialStep={tutorialStep} />
+          <EnemyManager tutorialComplete={tutorialComplete} />
+        </>
+      )}
 
-      <EffectComposer>
+      <EffectComposer multisampling={0}>
         <Bloom 
           luminanceThreshold={0.2} 
           luminanceSmoothing={0.9} 
           height={300} 
-          intensity={1.2} 
+          intensity={1.2}
+          mipmapBlur
         />
         <Vignette eskil={false} offset={0.1} darkness={1.2} />
       </EffectComposer>

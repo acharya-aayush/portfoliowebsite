@@ -74,7 +74,7 @@ const Navbar = () => {
         </div>
       </motion.nav>
 
-      {/* Mobile Menu */}
+      {/* Glassmorphic Mobile Menu - Black/White/Gold Theme */}
       <motion.div
         initial={{ opacity: 0, x: '100%' }}
         animate={{ opacity: isOpen ? 1 : 0, x: isOpen ? 0 : '100%' }}
@@ -83,20 +83,47 @@ const Navbar = () => {
           isOpen ? 'pointer-events-auto' : 'pointer-events-none'
         }`}
       >
-        <div className="absolute inset-0 bg-background/95 backdrop-blur-xl">
-          <div className="flex flex-col items-center justify-center h-full space-y-8">
+        {/* Glassmorphic backdrop */}
+        <div className="absolute inset-0 bg-black/90 backdrop-blur-2xl">
+          {/* Decorative elements */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#d4af37]/50 to-transparent" />
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#d4af37]/50 to-transparent" />
+          
+          {/* Menu content */}
+          <div className="relative flex flex-col items-center justify-center h-full space-y-6 px-8">
+            {/* Logo/Title */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: isOpen ? 1 : 0, scale: isOpen ? 1 : 0.9 }}
+              transition={{ delay: 0.1, duration: 0.3 }}
+              className="mb-8 text-center"
+            >
+              <div className="text-[#d4af37] text-sm font-body uppercase tracking-widest mb-2">Navigation</div>
+              <div className="h-px w-24 mx-auto bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+            </motion.div>
+
+            {/* Nav Links */}
             {navLinks.map((link, index) => (
               <motion.button
                 key={link.name}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: isOpen ? 1 : 0, y: isOpen ? 0 : 20 }}
-                transition={{ delay: index * 0.1 }}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: isOpen ? 1 : 0, x: isOpen ? 0 : 50 }}
+                transition={{ delay: 0.15 + index * 0.08, duration: 0.3 }}
                 onClick={() => scrollToSection(link.href)}
-                className="text-3xl font-heading hover-gold"
+                className="group relative w-full max-w-xs"
               >
-                {link.name}
+                <div className="relative px-8 py-4 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg transition-all duration-300 hover:bg-white/10 hover:border-[#d4af37]/50 hover:shadow-[0_0_30px_rgba(212,175,55,0.2)]">
+                  <span className="text-2xl font-heading text-white group-hover:text-[#d4af37] transition-colors duration-300">
+                    {link.name}
+                  </span>
+                  <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-[#d4af37] to-transparent group-hover:w-full transition-all duration-300" />
+                </div>
               </motion.button>
             ))}
+
+            {/* Decorative corner accents */}
+            <div className="absolute top-20 left-8 w-16 h-16 border-l-2 border-t-2 border-[#d4af37]/30 rounded-tl-lg" />
+            <div className="absolute bottom-20 right-8 w-16 h-16 border-r-2 border-b-2 border-[#d4af37]/30 rounded-br-lg" />
           </div>
         </div>
       </motion.div>

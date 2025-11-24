@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { shouldShowWaypointNotification, addShownWaypointNotification } from '@/lib/journey/ships';
 
 interface Notification {
   id: number;
@@ -14,6 +15,15 @@ export const WaypointNotifications: React.FC = () => {
   useEffect(() => {
     const handleWaypointCollected = (e: CustomEvent) => {
       const { waypoint, total, title } = e.detail;
+      
+      // Check if we should show this notification
+      if (!shouldShowWaypointNotification(waypoint)) {
+        return; // Already shown before, skip
+      }
+      
+      // Mark as shown
+      addShownWaypointNotification(waypoint);
+      
       const newNotification: Notification = {
         id: Date.now(),
         waypoint,

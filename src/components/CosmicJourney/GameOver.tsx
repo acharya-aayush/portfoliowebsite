@@ -100,7 +100,7 @@ export const GameOver = ({ onRestart, onMainMenu, asteroidCount, enemyCount, sur
           className="absolute inset-0 flex items-center justify-center"
         >
           <h1 
-            className="text-8xl md:text-[12rem] font-bold tracking-wider"
+            className="text-6xl sm:text-7xl md:text-8xl lg:text-[12rem] font-bold tracking-wider px-4"
             style={{
               color: '#8B0000',
               textShadow: '0 0 40px rgba(139, 0, 0, 0.8), 0 0 80px rgba(139, 0, 0, 0.4)',
@@ -124,12 +124,12 @@ export const GameOver = ({ onRestart, onMainMenu, asteroidCount, enemyCount, sur
             <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl p-8 md:p-10">
               
               {/* Game Over Title */}
-              <h2 className="text-4xl font-bold text-center text-white mb-6" style={{ fontFamily: 'Impact, "Arial Black", sans-serif' }}>
+              <h2 className="text-3xl sm:text-4xl font-bold text-center text-white mb-6" style={{ fontFamily: 'Impact, "Arial Black", sans-serif' }}>
                 GAME OVER
               </h2>
               
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 py-6 border-y border-white/10">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8 py-6 border-y border-white/10">
                 <div className="flex flex-col items-center">
                   <div className="text-2xl md:text-3xl font-bold text-[#d4af37] mb-1 font-mono">
                     {asteroidCount}

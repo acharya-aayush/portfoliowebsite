@@ -1,5 +1,39 @@
 // Spaceship model definitions and unlock system
 
+// Cookie helpers for waypoint notifications
+export const getShownWaypointNotifications = (): Set<number> => {
+  const stored = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('shownWaypoints='))
+    ?.split('=')[1];
+  
+  if (!stored) return new Set();
+  try {
+    return new Set(JSON.parse(decodeURIComponent(stored)));
+  } catch {
+    return new Set();
+  }
+};
+
+export const addShownWaypointNotification = (waypoint: number) => {
+  const shown = getShownWaypointNotifications();
+  shown.add(waypoint);
+  document.cookie = `shownWaypoints=${encodeURIComponent(JSON.stringify(Array.from(shown)))}; path=/; max-age=31536000`;
+};
+
+export const shouldShowWaypointNotification = (waypoint: number): boolean => {
+  return !getShownWaypointNotifications().has(waypoint);
+};
+
+// Tutorial completion achievement
+export const hasTutorialAchievement = (): boolean => {
+  return document.cookie.includes('tutorialAchievement=true');
+};
+
+export const setTutorialAchievement = () => {
+  document.cookie = 'tutorialAchievement=true; path=/; max-age=31536000';
+};
+
 export interface ShipModel {
   id: string;
   name: string;
